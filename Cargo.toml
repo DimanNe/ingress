@@ -1,0 +1,15 @@
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+
+[workspace]
+
+resolver = "2"
+
+members = [
+   "grpc",
+   "back",
+   "front",
+]

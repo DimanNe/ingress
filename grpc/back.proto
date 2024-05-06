@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package back;
+
+service Backend {
+  rpc SayHello (HelloReq) returns (HelloResp) {}
+}
+
+message HelloReq {
+  string req = 1;
+}
+
+message HelloResp {
+  string resp = 1;
+}
