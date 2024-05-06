@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: back
+  labels:
+    app: back
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: back
+  template:
+    metadata:
+      labels:
+        app: back
+    spec:
+      containers:
+      - name: back
+        image: localhost:5001/back:0.1
+        ports:
+        - containerPort: 50055

@@ -1,1 +1,2 @@
-mod balancer;
+pub mod balancer;
+pub mod proxy;
