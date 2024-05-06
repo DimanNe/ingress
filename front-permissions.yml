@@ -1,0 +1,40 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default
+  name: pingora-ingress
+rules:
+- apiGroups: [""]
+  resources: ["pods", "nodes", "services", "endpoints", "persistentvolumeclaims"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps", "extensions"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pingora-ingress
+  namespace: default
+
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pingora-ingress
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: pingora-ingress
+  namespace: default
+roleRef:
+  kind: Role
+  name: pingora-ingress
+  apiGroup: rbac.authorization.k8s.io

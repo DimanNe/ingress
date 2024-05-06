@@ -1,3 +1,4 @@
+use anyhow::{anyhow, Context, Result};
 use pingora::services::Service;
 
 pub fn init_logger(log_level: &str) {
@@ -7,12 +8,24 @@ pub fn init_logger(log_level: &str) {
 }
 
 
-async fn watch_kube() {
-    log::info!("Starting watching k8s updates...");
+use kube::ResourceExt;
+async fn watch_kube() -> Result<()> {
+   log::info!("Starting watching k8s updates...");
+
+   let client = kube::Client::try_default().await?;
+
+   // Read pods in the configured namespace into the typed interface from k8s-openapi
+   let pods: kube::api::Api<k8s_openapi::api::core::v1::Pod> = kube::api::Api::default_namespaced(client);
+   for p in pods.list(&kube::api::ListParams::default()).await? {
+      log::info!("found pod {}", p.name_any());
+   }
+   Ok(())
 }
 
+
+
 async fn async_main(shutdown_recv: pingora_core::server::ShutdownWatch) {
-   tokio::spawn(async move { watch_kube().await });
+   tokio::spawn(async move { watch_kube().await.unwrap() });
 
    let fds = pingora::server::Fds::new();
    let fds = Some(std::sync::Arc::new(tokio::sync::Mutex::new(fds)));

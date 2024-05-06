@@ -1,12 +1,8 @@
-#### First time
+#### Setup kind cluster
 
 ```fish
 ing_create_kind_cluster_and_tag
 ing_make_local_registry_accessible_in_kind
-
-docker build -t localhost:5001/back:0.1 -f ~/devel/ingress/back.Dockerfile ~/devel/ingress/
-docker push localhost:5001/back:0.1
-kubectl apply -f ~/devel/ingress/back-deployment.yml
 ```
 
 #### Rollout new version of back/front
@@ -17,12 +13,16 @@ docker build -t localhost:5001/$app:$v -f ~/devel/ingress/$app.Dockerfile ~/deve
 docker push localhost:5001/$app:$v
 yq e ".spec.template.spec.containers[0].image = \"localhost:5001/$app:$v\"" -i ~/devel/ingress/$app-deployment.yml
 kubectl apply -f ~/devel/ingress/$app-deployment.yml
+sleep 1
+set pod (kubectl get pods --selector=app=$app --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1:].metadata.name}')
+kubectl logs -f $pod -c $app
 ```
 
 
-#### Add front service
+#### front (only once)
 
 ```fish
+kubectl apply -f ~/devel/ingress/front-permissions.yml
 kubectl apply -f ~/devel/ingress/front-service.yml
 ```
 
