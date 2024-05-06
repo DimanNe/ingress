@@ -27,6 +27,7 @@ tonic                  = { version = "0.11"                                     
 
 pingora                = { version = "0.1",   features = ["openssl", "proxy"]                 }
 pingora-proxy          = { version = "0.1"                                                    }
+pingora-runtime        = { version = "0.1"                                                    }
 pingora-core           = { version = "0.1"                                                    }
 pingora-error          = { version = "0.1"                                                    }
 pingora-http           = { version = "0.1"                                                    }

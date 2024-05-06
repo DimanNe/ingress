@@ -674,6 +674,7 @@ dependencies = [
  "pingora-http",
  "pingora-load-balancing",
  "pingora-proxy",
+ "pingora-runtime",
  "structopt",
  "tokio",
  "tonic",
