@@ -19,11 +19,13 @@ kubectl logs -f $pod -c $app
 ```
 
 
-#### front (only once)
+#### front & back (only once)
 
 ```fish
 kubectl apply -f ~/devel/ingress/front-permissions.yml
+# deploy as described above
 kubectl apply -f ~/devel/ingress/front-service.yml
+kubectl apply -f ~/devel/ingress/back-service.yml
 ```
 
 Test if works:

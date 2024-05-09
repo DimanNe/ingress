@@ -19,6 +19,6 @@ spec:
       serviceAccountName: pingora-ingress
       containers:
         - name: front
-          image: localhost:5001/front:2024.05.06--23.31.59
+          image: localhost:5001/front:2024.05.09--16.27.24
           ports:
             - containerPort: 8080

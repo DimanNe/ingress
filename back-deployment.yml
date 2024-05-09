@@ -15,7 +15,7 @@ spec:
         app: back
     spec:
       containers:
-      - name: back
-        image: localhost:5001/back:0.1
-        ports:
-        - containerPort: 50055
+        - name: back
+          image: localhost:5001/back:2024.05.09--16.28.07
+          ports:
+            - containerPort: 50055

@@ -1,21 +1,24 @@
+use k8s_openapi::api::networking::v1::IngressRule;
+pub type Tx = tokio::sync::mpsc::Sender<IngressRule>;
+pub type Rx = tokio::sync::mpsc::Receiver<IngressRule>;
+
+struct MutState {
+   rx:   Rx,
+   rule: Option<IngressRule>,
+}
+
 pub struct MyProxy {
    shutdown: tokio::sync::Notify,
-   client:   std::sync::Arc<tokio::sync::Mutex<Option<grpc::back::backend_client::BackendClient<tonic::transport::Channel>>>>,
+   state:    tokio::sync::Mutex<std::cell::RefCell<MutState>>,
 }
 
 impl MyProxy {
-   pub fn new() -> std::sync::Arc<Self> {
+   pub fn from(rx: Rx) -> std::sync::Arc<Self> {
       std::sync::Arc::new(MyProxy { shutdown: tokio::sync::Notify::new(),
-                                    client:   std::sync::Arc::new(tokio::sync::Mutex::new(None)), })
-   }
-   async fn init_client(&self) {
-      let mut guard = self.client.lock().await;
-      if guard.is_some() {
-         return;
-      }
-      // let client = grpc::back::backend_client::BackendClient::connect("http://127.0.0.1:50055").await
-      //                                                                                          .unwrap();
-      // *guard = Some(client);
+                                    state:
+                                       tokio::sync::Mutex::new(std::cell::RefCell::new(MutState { rx,
+                                                                                                  rule:
+                                                                                                     None })), })
    }
    async fn try_reading_headers(&self,
                                 mut downstream_session: Box<pingora_core::protocols::http::server::Session>)
@@ -42,25 +45,49 @@ impl MyProxy {
       Some(downstream_session)
    }
 
-   async fn process_request(self: &std::sync::Arc<Self>,
-                            mut session: pingora_core::protocols::http::server::Session)
-                            -> Option<pingora_core::protocols::Stream> {
-      self.init_client().await;
+   async fn dispatch(self: &std::sync::Arc<Self>,
+                     session: &mut pingora_core::protocols::http::server::Session)
+                     -> String {
+      // String::new()
+      let rule = {
+         let state = self.state.lock().await;
+         let mut state = state.borrow_mut();
 
-      // let mut client_guard = self.client.lock().await;
-      // let client = client_guard.as_mut().unwrap();
-      // let request = tonic::Request::new(grpc::back::HelloReq { req: "asdf".into() });
-      // let response = client.say_hello(request).await.unwrap();
-      // let response = response.into_inner().resp;
-      // log::info!("RESPONSE={:?}", response);
-      let response = "temp static response";
+         if let Ok(new_rule) = state.rx.try_recv() {
+            state.rule = Some(new_rule);
+         }
+         state.rule.clone()
+      };
+      if rule.is_none() {
+         return "No rules has been set yet! Apply ingress.yml first!".to_string();
+      }
+      let rule = rule.unwrap();
+      let host = rule.host.unwrap();
+      let first_path = rule.http.as_ref().unwrap().paths.first().unwrap();
+      let path = first_path.path.as_ref().unwrap();
+      let service_name = &first_path.backend.service.as_ref().unwrap().name;
+      let service_port = first_path.backend.service.as_ref().unwrap().port.as_ref().unwrap().number.unwrap();
 
-      let mut headers = pingora_http::ResponseHeader::build(http::status::StatusCode::OK, Some(0)).unwrap();
-      headers.insert_header(http::header::CONTENT_LENGTH, response.len().to_string()).unwrap();
-      headers.insert_header(http::header::CONTENT_TYPE, "text/plain").unwrap();
-      let _ = session.write_response_header(Box::new(headers)).await;
-      let _ = session.write_response_body(response.into()).await;
-      return session.finish().await.ok().flatten();
+      let http_path = session.req_header().uri.path();
+      let http_host = session.req_header().headers.get(http::header::HOST).unwrap().to_str().unwrap();
+      let mut resp = format!(
+                             "
+Ingress rule: host: {host}, path: {path} => mapped to => {service_name}:{service_port}
+Current HTTP request path {http_path}, host: {http_host}\n"
+      );
+
+      if http_host == host && http_path == path {
+         let back = format!("http://{service_name}:{service_port}");
+         resp.push_str(&format!("Host & path match => forwarding reqeust to backend: {back}...\n"));
+         let endpoint = tonic::transport::channel::Endpoint::from_shared(back).unwrap();
+         let mut client = grpc::back::backend_client::BackendClient::connect(endpoint).await.unwrap();
+         let request = tonic::Request::new(grpc::back::HelloReq { req: "asdf".into() });
+         let response = client.say_hello(request).await.unwrap();
+         let response = response.into_inner().resp;
+         resp.push_str(&response);
+         // log::info!("RESPONSE={:?}", response);
+      }
+      resp
    }
 }
 
@@ -73,21 +100,20 @@ impl pingora_core::apps::HttpServerApp for MyProxy {
                              -> Option<pingora_core::protocols::Stream> {
       let session = Box::new(session);
 
-      // TODO: keepalive pool, use stack
       let mut session = match self.try_reading_headers(session).await {
          Some(downstream_session) => downstream_session,
          None => return None, // bad request
       };
+      session.set_keepalive(if *shutdown.borrow() { None } else { Some(60) });
 
-      if *shutdown.borrow() {
-         // stop downstream from reusing if this service is shutting down soon
-         session.set_keepalive(None);
-      } else {
-         // default 60s
-         session.set_keepalive(Some(60));
-      }
-
-      self.process_request(*session).await
+      // self.process_request(*session).await
+      let response = self.dispatch(&mut session).await;
+      let mut headers = pingora_http::ResponseHeader::build(http::status::StatusCode::OK, Some(0)).unwrap();
+      headers.insert_header(http::header::CONTENT_LENGTH, response.len().to_string()).unwrap();
+      headers.insert_header(http::header::CONTENT_TYPE, "text/plain").unwrap();
+      let _ = session.write_response_header(Box::new(headers)).await;
+      let _ = session.write_response_body(response.into()).await;
+      return session.finish().await.ok().flatten();
    }
 
    fn http_cleanup(&self) { self.shutdown.notify_waiters(); }
