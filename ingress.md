@@ -1,3 +1,13 @@
+#### Resources
+
+* [How to Build a Custom Kubernetes Ingress Controller in Go](https://www.doxsey.net/blog/how-to-build-a-custom-kubernetes-ingress-controller-in-go/)
+* [Building a Kubernetes Ingress Controller](https://eyskens.me/building-a-kubernetes-ingress-controller/)
+* [Use case: deploy your custom ingress controller](https://cloud.garr.it/containers/ingress/)
+* [Learning how an ingress controller works by building one in bash](https://community.ops.io/danielepolencic/learning-how-an-ingress-controller-works-by-building-one-in-bash-3fni)
+* [Nginx controller](https://github.com/kubernetes/ingress-nginx/blob/main/internal/ingress/controller/controller.go)
+
+
+
 #### Setup kind cluster
 
 ```fish
