@@ -4,7 +4,7 @@
 #### **Setup kind cluster**
 
 
-#### **New version of back/front pod**
+#### **Deploy back/front pod**
 
 ```fish
 set app front; set v (date -u +%Y.%m.%d--%H.%M.%S)
@@ -17,7 +17,7 @@ set pod (kubectl get pods --selector=app=$app --sort-by=.metadata.creationTimest
 kubectl logs -f $pod -c $app
 ```
 
-#### **Other k8s resources**
+#### **Deploy other k8s resources**
 
 ```fish
 kubectl apply -f ~/devel/ingress/front-permissions.yml
@@ -29,17 +29,19 @@ kubectl apply -f ~/devel/ingress/back-service.yml
 --------------------------------------------------------------------------------------------------------------
 ## **Demo**
 
-`back` is a grpc services, listens on 50055 port, replies with a string: `format!("Hello from server: {hostname:?} at: {now} for req: {}", request.into_inner().req).into();`. See back/src/main.rs.
+`back` is a grpc services, listens on 50055 port, replies with a string: `format!("Hello from server: {hostname:?} at: {now} for req: {}", request.into_inner().req).into();`. See [back/src/main.rs](https://github.com/DimanNe/ingress/blob/master/back/src/main.rs).
 
-`front` service is minimal possible implementation of ingress-controller. See front/src/main.rs & front/src/proxy.rs.
+`front` service is minimal possible implementation of ingress-controller. See
+[front/src/main.rs](https://github.com/DimanNe/ingress/blob/master/front/src/main.rs) &
+[front/src/proxy.rs](https://github.com/DimanNe/ingress/blob/master/front/src/proxy.rs).
 
 The service:
 
 * listens on 80 port, using cloudflare's Pingora rust server
 * watches for changes in k8s configuration (`fn watch_kube(tx: front::proxy::Tx)`)
 * matches host & path from http request with what is specified in ingress.yml
-  (`if http_host == host && http_path == path`), and if everything matches, makes
-  grpc request to the backend from ingress.yml receives response, and creates http response
+  (`if http_host == host && http_path == path`), **and if everything matches, makes
+  grpc request to the backend (from ingress.yml) waits for grpc response, and replies with http response**
 
 
 
@@ -50,7 +52,7 @@ curl -H "Host: asdf.com" http://172.18.0.4:31003/qwer
 No rules has been set yet! Apply ingress.yml first!
 ```
 
-#### Load config, but host & path do not match
+#### Config loaded, but host & path do not match
 
 ```
 kubectl apply -f ~/devel/ingress/test-ingress.yml
